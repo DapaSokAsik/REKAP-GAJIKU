@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101827">
+<meta name="description" content="Catat jam pulang dan hitung gaji mingguan otomatis.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Gaji Tracker</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d2e;--panel2:#1a2940;--line:#26364e;--text:#eef4ff;--muted:#9aabc3;--accent:#70d6a5;--blue:#83b8ff;--danger:#ff8d8d}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#101c30,#0b1220 55%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text);min-height:100vh}
+.wrap{width:min(100%,520px);margin:auto;padding:22px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.brand{font-weight:800;font-size:20px;letter-spacing:.2px}.sub{font-size:12px;color:var(--muted);margin-top:3px}
+.pill{font-size:11px;color:var(--accent);border:1px solid #32644f;padding:6px 10px;border-radius:30px;background:#142b27}
+.card{background:rgba(18,29,46,.94);border:1px solid var(--line);border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 10px 28px #0002}
+.eyebrow{font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}.total{font-size:34px;font-weight:850;letter-spacing:-1px;margin:7px 0 2px}.green{color:var(--accent)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.stat{background:var(--panel2);padding:12px;border-radius:13px}.stat small{display:block;color:var(--muted);font-size:11px}.stat strong{display:block;margin-top:5px;font-size:17px}
+h2{font-size:16px;margin:0 0 14px}.field-label{display:block;color:var(--muted);font-size:12px;margin:0 0 7px}
+input[type=time]{width:100%;border:1px solid #344761;background:#0d1727;color:var(--text);padding:14px;border-radius:12px;font-size:24px;font-weight:700;outline:none}
+input:focus{border-color:var(--blue)}.hint{font-size:12px;color:var(--muted);line-height:1.5;margin:9px 0 14px}
+button{border:0;border-radius:12px;padding:13px 16px;font-size:14px;font-weight:750;cursor:pointer}
+.primary{width:100%;background:var(--accent);color:#092016}.secondary{background:#243650;color:var(--text)}.danger{background:#3b2229;color:#ffc1c1}
+.result{display:none;background:#102b25;border:1px solid #285c49;padding:13px;border-radius:13px;margin:12px 0}.result.show{display:block}.result-row{display:flex;justify-content:space-between;margin:5px 0;font-size:13px}.result strong{color:var(--accent)}
+.weekhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.weekhead span{font-size:12px;color:var(--muted)}
+.day{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.day:first-child{border-top:0}.dayname{font-weight:700;font-size:13px}.daydate{font-size:11px;color:var(--muted);margin-top:3px}.dayright{text-align:right;font-size:13px}.dayright small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:18px 0}.foot{font-size:11px;color:var(--muted);line-height:1.6;margin:14px 4px}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1}.toast{font-size:12px;color:var(--accent);min-height:18px;margin-top:8px}
+@media(min-width:520px){.wrap{padding-top:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><div class="brand">Gaji Tracker</div><div class="sub">Catat jam pulang, gaji dihitung otomatis</div></div>
+    <div class="pill">Mingguan</div>
+  </header>
+
+  <section class="card">
+    <div class="eyebrow">Total penghasilan minggu ini</div>
+    <div class="total green" id="weeklyTotal">Rp0</div>
+    <div class="sub" id="weekRange">Sabtu – Jumat</div>
+    <div class="stats">
+      <div class="stat"><small>Total lembur</small><strong id="weeklyOt">0 jam</strong></div>
+      <div class="stat"><small>Hari tercatat</small><strong id="workDays">0 / 6 hari</strong></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Catat jam pulang</h2>
+    <label class="field-label" for="exitTime">Jam pulang hari ini</label>
+    <input id="exitTime" type="time" value="16:00">
+    <div class="hint">Jam normal 16.00. Setiap kelebihan waktu dibulatkan ke atas per 30 menit. Contoh 18.20 dihitung 2,5 jam lembur.</div>
+    <div class="result" id="preview">
+      <div class="result-row"><span>Lembur dihitung</span><strong id="previewOt">0 jam</strong></div>
+      <div class="result-row"><span>Upah lembur</span><strong id="previewPay">Rp0</strong></div>
+      <div class="result-row"><span>Total gaji hari ini</span><strong id="previewTotal">Rp90.000</strong></div>
+    </div>
+    <button class="primary" id="saveBtn">Simpan hasil kerja hari ini</button>
+    <div class="toast" id="toast" role="status"></div>
+  </section>
+
+  <section class="card">
+    <div class="weekhead"><h2 style="margin:0">Riwayat minggu ini</h2><span>Sabtu – Jumat</span></div>
+    <div id="history"></div>
+    <div class="actions">
+      <button class="secondary" id="exportBtn">Ekspor CSV</button>
+      <button class="secondary" id="allBtn">Lihat semua</button>
+    </div>
+  </section>
+  <div class="foot">Aturan: gaji normal Rp90.000 per hari kerja · lembur Rp10.000/jam · Minggu libur. Data tersimpan di browser/perangkat ini.</div>
+</div>
+<script>
+const BASE=90000, RATE=10000, NORMAL='16:00', STORE='gajiTracker_v1';
+const $=id=>document.getElementById(id);
+let records=load();
+function load(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){return {}}}
+function persist(){localStorage.setItem(STORE,JSON.stringify(records))}
+function rupiah(n){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n)}
+function parseTime(s){const [h,m]=s.split(':').map(Number);return h*60+m}
+function calc(time){
+  const mins=Math.max(0,parseTime(time)-parseTime(NORMAL));
+  const halfHours=Math.ceil(mins/30);
+  const ot=halfHours/2;
+  return {ot,otPay:ot*RATE,total:BASE+ot*RATE};
+}
+function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function parseDate(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}
+function fmtDate(d){return new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'short'}).format(d)}
+function dayName(d){return new Intl.DateTimeFormat('id-ID',{weekday:'long'}).format(d)}
+function isSunday(d){return d.getDay()===0}
+function weekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const back=(x.getDay()+1)%7; x.setDate(x.getDate()-back);return x}
+function weekDates(d){const start=weekStart(d);return Array.from({length:7},(_,i)=>{const x=new Date(start);x.setDate(start.getDate()+i);return x})}
+function fmtHours(v){return (Number.isInteger(v)?v:v.toFixed(1).replace('.',','))+' jam'}
+function render(){
+  const today=new Date(), dates=weekDates(today), keys=dates.map(dateKey);
+  const valid=keys.filter(k=>records[k]&&!isSunday(parseDate(k)));
+  const total=valid.reduce((s,k)=>s+records[k].total,0);
+  const ot=valid.reduce((s,k)=>s+records[k].ot,0);
+  $('weeklyTotal').textContent=rupiah(total);
+  $('weeklyOt').textContent=fmtHours(ot);
+  $('workDays').textContent=valid.length+' / 6 hari';
+  $('weekRange').textContent=fmtDate(dates[0])+' – '+fmtDate(dates[6])+' '+dates[6].getFullYear();
+  const hist=$('history');hist.innerHTML='';
+  dates.forEach(d=>{
+    const k=dateKey(d),r=records[k],row=document.createElement('div');row.className='day';
+    const left=document.createElement('div'),right=document.createElement('div');
+    const name=document.createElement('div');name.className='dayname';name.textContent=dayName(d);
+    const date=document.createElement('div');date.className='daydate';date.textContent=fmtDate(d);
+    left.append(name,date);right.className='dayright';
+    if(isSunday(d)){right.textContent='Libur';right.style.color='var(--muted)'}
+    else if(r){right.textContent=rupiah(r.total);const sm=document.createElement('small');sm.textContent=r.time+' · lembur '+fmtHours(r.ot);right.append(sm)}
+    else{right.textContent='Belum dicatat';right.style.color='var(--muted)'}
+    row.append(left,right);hist.append(row);
+  });
+  const k=dateKey(today);
+  if(records[k])$('exitTime').value=records[k].time;
+  updatePreview();
+}
+function updatePreview(){
+  const today=new Date(), sunday=isSunday(today), time=$('exitTime').value||'16:00',c=calc(time);
+  $('preview').classList.add('show');
+  $('previewOt').textContent=fmtHours(c.ot);
+  $('previewPay').textContent=rupiah(c.otPay);
+  $('previewTotal').textContent=rupiah(c.total);
+  $('saveBtn').disabled=sunday;
+  $('saveBtn').style.opacity=sunday?'.45':'1';
+  $('toast').textContent=sunday?'Hari Minggu adalah hari libur, tidak ada pencatatan gaji.':'';
+}
+$('exitTime').addEventListener('input',updatePreview);
+$('saveBtn').addEventListener('click',()=>{
+  const d=new Date(),k=dateKey(d);
+  if(isSunday(d)){ $('toast').textContent='Hari Minggu adalah hari libur.';return; }
+  const time=$('exitTime').value;
+  if(!time){$('toast').textContent='Pilih jam pulang terlebih dahulu.';return}
+  const c=calc(time);
+  records[k]={time,ot:c.ot,otPay:c.otPay,total:c.total};
+  persist();render();$('toast').textContent='Tersimpan! Catatan hari ini berhasil diperbarui.';
+});
+$('exportBtn').addEventListener('click',()=>{
+  const rows=[['Tanggal','Hari','Jam pulang','Lembur (jam)','Upah lembur','Total gaji']];
+  Object.keys(records).sort().forEach(k=>{const d=parseDate(k),r=records[k];rows.push([k,dayName(d),r.time,String(r.ot),String(r.otPay),String(r.total)])});
+  const csv=rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='riwayat-gaji.csv';a.click();URL.revokeObjectURL(url);
+});
+$('allBtn').addEventListener('click',()=>{
+  const keys=Object.keys(records).sort().reverse();
+  if(!keys.length){$('toast').textContent='Belum ada riwayat tersimpan.';return}
+  const lines=keys.map(k=>{const r=records[k],d=parseDate(k);return `${fmtDate(d)} (${dayName(d)}): ${r.time}, lembur ${fmtHours(r.ot)}, ${rupiah(r.total)}`});
+  alert('Semua riwayat tersimpan:\n\n'+lines.join('\n'));
+});
+render();
+</script>
+<script>
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.error('PWA worker:', err));
+  });
+}
+</script>
+</body>
+</html>
